@@ -1,0 +1,772 @@
+[
+  {
+    "question": "When was the journey 'Birthday Message' published?",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "sql": "SELECT name AS campaign_name,\n       lastdeployedtime AS published_time\nFROM dim_campaign\nWHERE name IN ('Birthday Message', 'Gold Tier Welcome Email')\nLIMIT 50",
+        "action_type": "sql"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/ajo/journey",
+        "api_url": "https://platform.adobe.io/ajo/journey",
+        "api_params": "{\"filter\": \"name==Birthday\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Give me inactive journeys",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "sql": "SELECT J.CAMPAIGNID AS campaign_id,\n       J.NAME AS campaign_name,\n       J.STATE AS campaign_state,\n       J.UPDATEDTIME AS updated_time\nFROM DIM_CAMPAIGN AS J\nWHERE LOWER(J.STATE) NOT IN ('deployed', 'redeployed')\nLIMIT 50",
+        "action_type": "sql"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/ajo/journey",
+        "api_url": "https://platform.adobe.io/ajo/journey",
+        "api_params": "{\"filter\": \"status!=live\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "List all journeys",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "sql": "SELECT CAMPAIGN.NAME AS CAMPAIGNNAME,\n       CAMPAIGN.CAMPAIGNID\nFROM DIM_CAMPAIGN AS CAMPAIGN\nLIMIT 10",
+        "action_type": "sql"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/ajo/journey",
+        "api_url": "https://platform.adobe.io/ajo/journey",
+        "api_params": "{\"pageSize\": \"10\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "List all segment audiences connected to the destination named 'SMS Opt-In', showing audienceId, name, totalProfiles, createdTime, updatedTime, and used in other audience count for each audience. Remove any row limit from the results.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "sql_then_api",
+    "n_steps": 3,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "sql": "SELECT \n    a.segmentid AS segment_id,\n    a.name AS segment_name,\n    a.totalmembers AS total_profiles,\n    a.createdTime AS created_time,\n    a.updatedTime AS updated_time\nFROM dim_segment a\nJOIN hkg_br_segment_target ad ON a.segmentid = ad.segmentid\nJOIN dim_target d ON ad.targetId = d.targetId\nWHERE d.dataflowName = 'SMS Opt-In'\nORDER BY a.name",
+        "action_type": "sql"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/audiences",
+        "api_url": "https://platform.adobe.io/data/core/ups/audiences",
+        "api_params": "{\"property\": \"destinationId==<destination_id>\", \"limit\": \"5\"}",
+        "action_type": "api"
+      },
+      {
+        "step_id": "s3",
+        "depends_on": [
+          "s2"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/flowservice/flows",
+        "api_url": "https://platform.adobe.io/data/foundation/flowservice/flows",
+        "api_params": "{\"property\": \"inheritedAttributes.properties.isDestinationFlow==true\", \"limit\": \"5\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Show me the IDs of failed dataflow runs",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "sql": "SELECT DISTINCT S.DATAFLOWID AS dataflow_id\nFROM DIM_CONNECTOR AS S\nWHERE S.STATE ILIKE '%loyalty%'\nLIMIT 50",
+        "action_type": "sql"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/flowservice/flows",
+        "api_url": "https://platform.adobe.io/data/foundation/flowservice/flows",
+        "api_params": "{\"filter\": \"state\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Export a list of all destinations in the b2b-prod sandbox, sorted by most recently modified, including all columns associated with each destination, and include the 'modified' column for validation.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "sql": "SELECT D.targetId AS target_id,\n       D.dataflowName AS dataflow_name,\n       D.name AS target_name,\n       D.description,\n       D.state,\n       D.connectionSpecId AS connection_spec_id,\n       D.createdTime AS created_time,\n       D.updatedTime AS modified,\n       D.interval,\n       D.frequency\nFROM dim_target AS D\nORDER BY D.updatedTime DESC\nLIMIT 50",
+        "action_type": "sql"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/flowservice/flows",
+        "api_url": "https://platform.adobe.io/data/foundation/flowservice/flows",
+        "api_params": "{\"limit\": \"50\", \"sort\": \"updatedTime:desc\", \"property\": \"inheritedAttributes.properties.isDestinationFlow==true\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "How many datasets have been ingested using the same schema in the prod sandbox?",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "sql_then_api",
+    "n_steps": 3,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "sql": "SELECT S.blueprintid AS blueprint_id,\n       S.name AS blueprint_name,\n       COUNT(DISTINCT DS.collectionid) AS collection_count\nFROM dim_collection AS D\nJOIN hkg_br_blueprint_collection AS DS ON D.collectionid = DS.collectionid\nJOIN dim_blueprint AS S ON DS.blueprintid = S.blueprintid\nGROUP BY S.blueprintid,\n         S.name\nHAVING COUNT(DISTINCT DS.collectionid) > 1",
+        "action_type": "sql"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/catalog/dataSets",
+        "api_url": "https://platform.adobe.io/data/foundation/catalog/dataSets",
+        "api_params": "{\"limit\": \"25\", \"property\": \"schema.name\"}",
+        "action_type": "api"
+      },
+      {
+        "step_id": "s3",
+        "depends_on": [
+          "s2"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas/{schema_id}",
+        "api_url": "https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas/{schema_id}",
+        "api_params": "null",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "List all datasets that use the schema 'hkg_adls_profile_count_history'.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "sql_then_api",
+    "n_steps": 3,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "sql": "SELECT DISTINCT D.collectionid AS collection_id,\n       D.name AS collection_name\nFROM hkg_br_blueprint_collection AS SD\nJOIN dim_collection AS D ON SD.collectionid = D.collectionid\nJOIN dim_blueprint AS S ON SD.blueprintid = S.blueprintid\nWHERE S.name = 'hkg_adls_profile_count_history'\nLIMIT 3",
+        "action_type": "sql"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/catalog/dataSets",
+        "api_url": "https://platform.adobe.io/data/foundation/catalog/dataSets",
+        "api_params": "{\"limit\": \"3\", \"filter\": \"schemaName==\\\"WF\"}",
+        "action_type": "api"
+      },
+      {
+        "step_id": "s3",
+        "depends_on": [
+          "s2"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas/{schema_id}",
+        "api_url": "https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas/{schema_id}",
+        "api_params": "null",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "show me the field for Person: Birthday Today 001",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "sql": "SELECT DISTINCT aa.property AS property_name, a.name AS segment_name\nFROM hkg_br_segment_property aa\nJOIN dim_segment a ON aa.segmentid = a.segmentid\nWHERE a.name = 'Person: Birthday Today 001'\nLIMIT 20",
+        "action_type": "sql"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/catalog/datasets",
+        "api_url": "https://platform.adobe.io/data/foundation/catalog/datasets",
+        "api_params": "{\"limit\": \"20\", \"filter\": \"name:SG\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Provide more details for the schema 'weRetail: Customer Actions'",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "sql": "SELECT S.BLUEPRINTID AS blueprint_id,\n       S.NAME,\n       S.CLASS,\n       S.ISPROFILEENABLED,\n       S.UPDATEDTIME AS updated_time,\n       S.REQUIREDFIELDS AS required_fields,\n       COUNT(DISTINCT SD.COLLECTIONID) AS collection_count,\n       COUNT(DISTINCT SA.PROPERTY) AS property_count\nFROM DIM_BLUEPRINT AS S\nLEFT JOIN HKG_BR_BLUEPRINT_COLLECTION AS SD ON S.BLUEPRINTID = SD.BLUEPRINTID\nLEFT JOIN HKG_BR_BLUEPRINT_PROPERTY AS SA ON S.BLUEPRINTID = SA.BLUEPRINTID\nWHERE LOWER(S.NAME) = LOWER('weRetail: Customer Actions')\nGROUP BY S.BLUEPRINTID,\n         S.NAME,\n         S.CLASS,\n         S.ISPROFILEENABLED,\n         S.UPDATEDTIME,\n         S.REQUIREDFIELDS\nLIMIT 3",
+        "action_type": "sql"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas",
+        "api_url": "https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas",
+        "api_params": "{\"limit\": \"5\", \"filter\": \"name==weRetail:\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Count the number of XDM Experience Event schemas that are enabled for profile.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "sql": "SELECT COUNT(DISTINCT S.BLUEPRINTID) AS num_experience_event_profile_enabled_blueprints\nFROM DIM_BLUEPRINT AS S\nWHERE LOWER(S.CLASS) LIKE LOWER('%download%')\n  AND S.ISPROFILEENABLED = TRUE",
+        "action_type": "sql"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas",
+        "api_url": "https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas",
+        "api_params": "{\"limit\": \"25\", \"filter\": \"class==ExperienceEvent;isProfileEnabled==true\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "How many schemas do I have?",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "sql": "SELECT COUNT(DISTINCT S.blueprintid) AS blueprint_count\nFROM dim_blueprint AS S",
+        "action_type": "sql"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas",
+        "api_url": "https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas",
+        "api_params": "{\"limit\": \"25\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "List all audiences in the sandbox that have been mapped to new destinations in the last 3 months.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "sql": "SELECT DISTINCT A.segmentid AS segment_id, A.name AS segment_name, D.targetId AS target_id, D.name AS target_name\nFROM dim_segment AS A\nJOIN hkg_br_segment_target AS AD ON A.segmentid = AD.segmentid\nJOIN dim_target AS D ON AD.targetId = D.targetId\nWHERE D.createdTime >= DATEADD(MONTH, -3, CURRENT_DATE)\nLIMIT 3",
+        "action_type": "sql"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/audit/events",
+        "api_url": "https://platform.adobe.io/data/foundation/audit/events",
+        "api_params": "{\"property\": \"assetType==destination\", \"limit\": \"3\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Show recent changes in datasets.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "sql": "SELECT DISTINCT D.COLLECTIONID AS collection_id,\n       D.NAME AS collection_name,\n       D.UPDATEDTIME AS updated_time\nFROM DIM_COLLECTION AS D\nWHERE D.UPDATEDTIME >= DATEADD(DAY, -90, CURRENT_DATE)\nORDER BY D.UPDATEDTIME DESC\nLIMIT 50",
+        "action_type": "sql"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/audit/events",
+        "api_url": "https://platform.adobe.io/data/foundation/audit/events",
+        "api_params": "{\"property\": \"assetType==dataset\", \"orderBy\": \"-timestamp\", \"limit\": \"50\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Show me all entities created by download",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "sql": "SELECT DISTINCT collectionid AS collection_id, name AS collection_name, createdtime AS created_time\nFROM dim_collection\nWHERE createdby ILIKE '%download%'\nLIMIT 20",
+        "action_type": "sql"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/audit/events",
+        "api_url": "https://platform.adobe.io/data/foundation/audit/events",
+        "api_params": "{\"property\": \"action==create\", \"limit\": \"20\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "How many tags exist in this sandbox?",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://experience.adobe.io/unifiedtags/tags",
+        "api_url": "https://experience.adobe.io/unifiedtags/tags",
+        "api_params": "{\"limit\": \"20\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "List all tags in this sandbox.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://experience.adobe.io/unifiedtags/tags",
+        "api_url": "https://experience.adobe.io/unifiedtags/tags",
+        "api_params": "{\"limit\": \"25\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Which tags belong to the category 'Uncategorized'?",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 2,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://experience.adobe.io/unifiedtags/tagCategory",
+        "api_url": "https://experience.adobe.io/unifiedtags/tagCategory",
+        "api_params": "{\"limit\": \"100\"}",
+        "action_type": "api"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://experience.adobe.io/unifiedtags/tags",
+        "api_url": "https://experience.adobe.io/unifiedtags/tags",
+        "api_params": "{\"limit\": \"100\", \"tagCategoryId\": \"Uncategorized-87891E4066602D250A495F91@AdobeOrg\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Show me the details of the tag named 'cool'.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://experience.adobe.io/unifiedtags/tags/51175a7f-aa60-4533-bef1-717b3cef7818",
+        "api_url": "https://experience.adobe.io/unifiedtags/tags/51175a7f-aa60-4533-bef1-717b3cef7818",
+        "api_params": "null",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "List all merge policies in this sandbox.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/config/mergePolicies",
+        "api_url": "https://platform.adobe.io/data/core/ups/config/mergePolicies",
+        "api_params": "{\"limit\": \"10\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "How many merge policies are configured in this sandbox?",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/config/mergePolicies",
+        "api_url": "https://platform.adobe.io/data/core/ups/config/mergePolicies",
+        "api_params": "{\"limit\": \"10\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Show the default merge policy for schema class '_xdm.context.profile'.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/config/mergePolicies",
+        "api_url": "https://platform.adobe.io/data/core/ups/config/mergePolicies",
+        "api_params": "{\"limit\": \"5\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "How many segment definitions exist in this sandbox?",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/segment/definitions",
+        "api_url": "https://platform.adobe.io/data/core/ups/segment/definitions",
+        "api_params": "{\"limit\": \"100\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "List all segment definitions.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/segment/definitions",
+        "api_url": "https://platform.adobe.io/data/core/ups/segment/definitions",
+        "api_params": "{\"limit\": \"10\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Which segment definitions were updated most recently?",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/segment/definitions",
+        "api_url": "https://platform.adobe.io/data/core/ups/segment/definitions",
+        "api_params": "{\"limit\": \"3\", \"orderBy\": \"updateTime:desc\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "List all segment evaluation jobs.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/segment/jobs",
+        "api_url": "https://platform.adobe.io/data/core/ups/segment/jobs",
+        "api_params": "{\"limit\": \"3\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "How many segment jobs are currently processing?",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/segment/jobs",
+        "api_url": "https://platform.adobe.io/data/core/ups/segment/jobs",
+        "api_params": "{\"limit\": \"20\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Show all segment jobs with status 'QUEUED'.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/segment/jobs",
+        "api_url": "https://platform.adobe.io/data/core/ups/segment/jobs",
+        "api_params": "{\"limit\": \"10\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "List the most recently created batches.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/catalog/batches",
+        "api_url": "https://platform.adobe.io/data/foundation/catalog/batches",
+        "api_params": "{\"limit\": \"100\", \"orderBy\": \"desc:created\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "How many batches have status 'success'?",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/catalog/batches",
+        "api_url": "https://platform.adobe.io/data/foundation/catalog/batches",
+        "api_params": "{\"limit\": \"10\", \"status\": \"success\"}",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Show the details of batch 01KP69BPA5ZKFB7HCDYPE4GN6F.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/catalog/batches/01KP69BPA5ZKFB7HCDYPE4GN6F",
+        "api_url": "https://platform.adobe.io/data/foundation/catalog/batches/01KP69BPA5ZKFB7HCDYPE4GN6F",
+        "api_params": "null",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Which files are available for download in batch 69de8a0e0cc6102b5d11f01e?",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/export/batches/69de8a0e0cc6102b5d11f01e/files",
+        "api_url": "https://platform.adobe.io/data/foundation/export/batches/69de8a0e0cc6102b5d11f01e/files",
+        "api_params": "null",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Show failed files for batch 01KP6MNQ3X71RP6MNH6FHWGHVE.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/export/batches/01KP6MNQ3X71RP6MNH6FHWGHVE/failed",
+        "api_url": "https://platform.adobe.io/data/foundation/export/batches/01KP6MNQ3X71RP6MNH6FHWGHVE/failed",
+        "api_params": "null",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "What are the daily 'timeseries.ingestion.dataset.recordsuccess.count' values between '2026-03-15' and '2026-03-31'?",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/infrastructure/observability/insights/metrics",
+        "api_url": "https://platform.adobe.io/data/infrastructure/observability/insights/metrics",
+        "api_params": "null",
+        "action_type": "api"
+      }
+    ]
+  },
+  {
+    "question": "Show ingestion record counts and batch success counts for the last 90 days.",
+    "reasoning": "Auto-inferred from execution trace.",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "all_steps_valid": true,
+    "steps": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/infrastructure/observability/insights/metrics",
+        "api_url": "https://platform.adobe.io/data/infrastructure/observability/insights/metrics",
+        "api_params": "null",
+        "action_type": "api"
+      }
+    ]
+  }
+]

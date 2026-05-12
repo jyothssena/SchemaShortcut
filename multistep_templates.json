@@ -1,0 +1,966 @@
+[
+  {
+    "template_id": "mtpl_001",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "When was the journey '{campaign_name}' published?",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "can_parallel": true,
+        "action_type": "sql",
+        "sql_template": "SELECT name AS campaign_name,\n       last{state}time AS published_time\nFROM dim_campaign\nWHERE name IN ('{campaign_name}', '{campaign_name}')\nLIMIT {limit}"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/ajo/journey",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/ajo/journey",
+        "api_params_template": "{\"filter\": \"name==Birthday\"}"
+      }
+    ],
+    "example_question": "When was the journey 'Birthday Message' published?",
+    "react_turn_cost": 4,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_002",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Give me inactive journeys",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "can_parallel": true,
+        "action_type": "sql",
+        "sql_template": "SELECT J.CAMPAIGNID AS campaign_id,\n       J.NAME AS campaign_name,\n       J.STATE AS campaign_state,\n       J.UPDATEDTIME AS {state}_time\nFROM DIM_CAMPAIGN AS J\nWHERE LOWER(J.STATE) NOT IN ('{state}', 're{state}')\nLIMIT {limit}"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/ajo/journey",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/ajo/journey",
+        "api_params_template": "{\"filter\": \"status!={state}\"}"
+      }
+    ],
+    "example_question": "Give me inactive journeys",
+    "react_turn_cost": 4,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_003",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "List all journeys",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "can_parallel": true,
+        "action_type": "sql",
+        "sql_template": "SELECT CAMPAIGN.NAME AS CAMPAIGNNAME,\n       CAMPAIGN.CAMPAIGNID\nFROM DIM_CAMPAIGN AS CAMPAIGN\nLIMIT {limit}"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/ajo/journey",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/ajo/journey",
+        "api_params_template": "{\"pageSize\": \"{limit}\"}"
+      }
+    ],
+    "example_question": "List all journeys",
+    "react_turn_cost": 4,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_004",
+    "intent_type": "sql_then_api",
+    "n_steps": 3,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "List all segment audiences connected to the destination named '{destination}', showing audienceId, name, totalProfiles, {state}Time, {state}Time, and used in other audience count for each audience. Remove any row limit from the results.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "can_parallel": true,
+        "action_type": "sql",
+        "sql_template": "SELECT \n    a.segmentid AS segment_id,\n    a.name AS segment_name,\n    a.totalmembers AS total_profiles,\n    a.{state}Time AS {state}_time,\n    a.{state}Time AS {state}_time\nFROM dim_segment a\nJOIN hkg_br_segment_target ad ON a.segmentid = ad.segmentid\nJOIN dim_target d ON ad.targetId = d.targetId\nWHERE d.dataflowName = '{destination}'\nORDER BY a.name"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/audiences",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/core/ups/audiences",
+        "api_params_template": "{\"property\": \"destinationId==<destination_id>\", \"limit\": \"{limit}\"}"
+      },
+      {
+        "step_id": "s3",
+        "depends_on": [
+          "s2"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/flowservice/flows",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/flowservice/flows",
+        "api_params_template": "{\"property\": \"inheritedAttributes.properties.isDestinationFlow==true\", \"limit\": \"{limit}\"}"
+      }
+    ],
+    "example_question": "List all segment audiences connected to the destination named 'SMS Opt-In', showing audienceId, name, totalProfiles, createdTime, updatedTime, and used in other audience count for each audience. Remove any row limit from the results.",
+    "react_turn_cost": 6,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_005",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Show me the IDs of {state} dataflow runs",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "can_parallel": true,
+        "action_type": "sql",
+        "sql_template": "SELECT DISTINCT S.DATAFLOWID AS dataflow_id\nFROM DIM_CONNECTOR AS S\nWHERE S.STATE ILIKE '%loyalty%'\nLIMIT {limit}"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/flowservice/flows",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/flowservice/flows",
+        "api_params_template": "{\"filter\": \"state\"}"
+      }
+    ],
+    "example_question": "Show me the IDs of failed dataflow runs",
+    "react_turn_cost": 4,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_006",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Export a list of all destinations in the b2b-prod sandbox, sorted by most recently modified, including all columns associated with each destination, and include the 'modified' column for validation.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "can_parallel": true,
+        "action_type": "sql",
+        "sql_template": "SELECT D.targetId AS target_id,\n       D.dataflowName AS dataflow_name,\n       D.name AS target_name,\n       D.description,\n       D.state,\n       D.connectionSpecId AS connection_spec_id,\n       D.{state}Time AS {state}_time,\n       D.{state}Time AS modified,\n       D.interval,\n       D.frequency\nFROM dim_target AS D\nORDER BY D.{state}Time DESC\nLIMIT {limit}"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/flowservice/flows",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/flowservice/flows",
+        "api_params_template": "{\"limit\": \"{limit}\", \"sort\": \"{state}Time:desc\", \"property\": \"inheritedAttributes.properties.isDestinationFlow==true\"}"
+      }
+    ],
+    "example_question": "Export a list of all destinations in the b2b-prod sandbox, sorted by most recently modified, including all columns associated with each destination, and include the 'modified' column for validation.",
+    "react_turn_cost": 4,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_007",
+    "intent_type": "sql_then_api",
+    "n_steps": 3,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "How many datasets have been ingested using the same schema in the prod sandbox?",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "can_parallel": true,
+        "action_type": "sql",
+        "sql_template": "SELECT S.blueprintid AS blueprint_id,\n       S.name AS blueprint_name,\n       COUNT(DISTINCT DS.collectionid) AS collection_count\nFROM dim_collection AS D\nJOIN hkg_br_blueprint_collection AS DS ON D.collectionid = DS.collectionid\nJOIN dim_blueprint AS S ON DS.blueprintid = S.blueprintid\nGROUP BY S.blueprintid,\n         S.name\nHAVING COUNT(DISTINCT DS.collectionid) > 1"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/catalog/dataSets",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/catalog/dataSets",
+        "api_params_template": "{\"limit\": \"2{limit}\", \"property\": \"schema.name\"}"
+      },
+      {
+        "step_id": "s3",
+        "depends_on": [
+          "s2"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas/{schema_id}",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas/{schema_id}",
+        "api_params_template": "null"
+      }
+    ],
+    "example_question": "How many datasets have been ingested using the same schema in the prod sandbox?",
+    "react_turn_cost": 6,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_008",
+    "intent_type": "sql_then_api",
+    "n_steps": 3,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "List all datasets that use the schema 'hkg_adls_profile_count_history'.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "can_parallel": true,
+        "action_type": "sql",
+        "sql_template": "SELECT DISTINCT D.collectionid AS collection_id,\n       D.name AS collection_name\nFROM hkg_br_blueprint_collection AS SD\nJOIN dim_collection AS D ON SD.collectionid = D.collectionid\nJOIN dim_blueprint AS S ON SD.blueprintid = S.blueprintid\nWHERE S.name = 'hkg_adls_profile_count_history'\nLIMIT 3"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/catalog/dataSets",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/catalog/dataSets",
+        "api_params_template": "{\"limit\": \"3\", \"filter\": \"schemaName==\\\"WF\"}"
+      },
+      {
+        "step_id": "s3",
+        "depends_on": [
+          "s2"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas/{schema_id}",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas/{schema_id}",
+        "api_params_template": "null"
+      }
+    ],
+    "example_question": "List all datasets that use the schema 'hkg_adls_profile_count_history'.",
+    "react_turn_cost": 6,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_009",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "show me the field for Person: Birthday Today 001",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "can_parallel": true,
+        "action_type": "sql",
+        "sql_template": "SELECT DISTINCT aa.property AS property_name, a.name AS segment_name\nFROM hkg_br_segment_property aa\nJOIN dim_segment a ON aa.segmentid = a.segmentid\nWHERE a.name = 'Person: Birthday Today 001'\nLIMIT 20"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/catalog/datasets",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/catalog/datasets",
+        "api_params_template": "{\"limit\": \"20\", \"filter\": \"name:SG\"}"
+      }
+    ],
+    "example_question": "show me the field for Person: Birthday Today 001",
+    "react_turn_cost": 4,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_010",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Provide more details for the schema 'weRetail: Customer Actions'",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "can_parallel": true,
+        "action_type": "sql",
+        "sql_template": "SELECT S.BLUEPRINTID AS blueprint_id,\n       S.NAME,\n       S.CLASS,\n       S.ISPROFILEENABLED,\n       S.UPDATEDTIME AS {state}_time,\n       S.REQUIREDFIELDS AS required_fields,\n       COUNT(DISTINCT SD.COLLECTIONID) AS collection_count,\n       COUNT(DISTINCT SA.PROPERTY) AS property_count\nFROM DIM_BLUEPRINT AS S\nLEFT JOIN HKG_BR_BLUEPRINT_COLLECTION AS SD ON S.BLUEPRINTID = SD.BLUEPRINTID\nLEFT JOIN HKG_BR_BLUEPRINT_PROPERTY AS SA ON S.BLUEPRINTID = SA.BLUEPRINTID\nWHERE LOWER(S.NAME) = LOWER('weRetail: Customer Actions')\nGROUP BY S.BLUEPRINTID,\n         S.NAME,\n         S.CLASS,\n         S.ISPROFILEENABLED,\n         S.UPDATEDTIME,\n         S.REQUIREDFIELDS\nLIMIT 3"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas",
+        "api_params_template": "{\"limit\": \"{limit}\", \"filter\": \"name==weRetail:\"}"
+      }
+    ],
+    "example_question": "Provide more details for the schema 'weRetail: Customer Actions'",
+    "react_turn_cost": 4,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_011",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Count the number of XDM Experience Event schemas that are {state} for profile.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "can_parallel": true,
+        "action_type": "sql",
+        "sql_template": "SELECT COUNT(DISTINCT S.BLUEPRINTID) AS num_experience_event_profile_{state}_blueprints\nFROM DIM_BLUEPRINT AS S\nWHERE LOWER(S.CLASS) LIKE LOWER('%download%')\n  AND S.ISPROFILEENABLED = TRUE"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas",
+        "api_params_template": "{\"limit\": \"2{limit}\", \"filter\": \"class==ExperienceEvent;isProfileEnabled==true\"}"
+      }
+    ],
+    "example_question": "Count the number of XDM Experience Event schemas that are enabled for profile.",
+    "react_turn_cost": 4,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_012",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "How many schemas do I have?",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "can_parallel": true,
+        "action_type": "sql",
+        "sql_template": "SELECT COUNT(DISTINCT S.blueprintid) AS blueprint_count\nFROM dim_blueprint AS S"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/schemaregistry/tenant/schemas",
+        "api_params_template": "{\"limit\": \"2{limit}\"}"
+      }
+    ],
+    "example_question": "How many schemas do I have?",
+    "react_turn_cost": 4,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_013",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "List all audiences in the sandbox that have been mapped to new destinations in the last 3 months.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "can_parallel": true,
+        "action_type": "sql",
+        "sql_template": "SELECT DISTINCT A.segmentid AS segment_id, A.name AS segment_name, D.targetId AS target_id, D.name AS target_name\nFROM dim_segment AS A\nJOIN hkg_br_segment_target AS AD ON A.segmentid = AD.segmentid\nJOIN dim_target AS D ON AD.targetId = D.targetId\nWHERE D.{state}Time >= DATEADD(MONTH, -3, CURRENT_DATE)\nLIMIT 3"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/audit/events",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/audit/events",
+        "api_params_template": "{\"property\": \"assetType==destination\", \"limit\": \"3\"}"
+      }
+    ],
+    "example_question": "List all audiences in the sandbox that have been mapped to new destinations in the last 3 months.",
+    "react_turn_cost": 4,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_014",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Show recent changes in datasets.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "can_parallel": true,
+        "action_type": "sql",
+        "sql_template": "SELECT DISTINCT D.COLLECTIONID AS collection_id,\n       D.NAME AS collection_name,\n       D.UPDATEDTIME AS {state}_time\nFROM DIM_COLLECTION AS D\nWHERE D.UPDATEDTIME >= DATEADD(DAY, -90, CURRENT_DATE)\nORDER BY D.UPDATEDTIME DESC\nLIMIT {limit}"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/audit/events",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/audit/events",
+        "api_params_template": "{\"property\": \"assetType==dataset\", \"orderBy\": \"-timestamp\", \"limit\": \"{limit}\"}"
+      }
+    ],
+    "example_question": "Show recent changes in datasets.",
+    "react_turn_cost": 4,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_015",
+    "intent_type": "sql_then_api",
+    "n_steps": 2,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Show me all entities {state} by download",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Execute SQL query to retrieve data",
+        "can_parallel": true,
+        "action_type": "sql",
+        "sql_template": "SELECT DISTINCT collectionid AS collection_id, name AS collection_name, {state}time AS {state}_time\nFROM dim_collection\nWHERE {state}by ILIKE '%download%'\nLIMIT 20"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/audit/events",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/audit/events",
+        "api_params_template": "{\"property\": \"action==create\", \"limit\": \"20\"}"
+      }
+    ],
+    "example_question": "Show me all entities created by download",
+    "react_turn_cost": 4,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_016",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "How many tags exist in this sandbox?",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://experience.adobe.io/unifiedtags/tags",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://experience.adobe.io/unifiedtags/tags",
+        "api_params_template": "{\"limit\": \"20\"}"
+      }
+    ],
+    "example_question": "How many tags exist in this sandbox?",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_017",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "List all tags in this sandbox.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://experience.adobe.io/unifiedtags/tags",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://experience.adobe.io/unifiedtags/tags",
+        "api_params_template": "{\"limit\": \"2{limit}\"}"
+      }
+    ],
+    "example_question": "List all tags in this sandbox.",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_018",
+    "intent_type": "chained_api_call",
+    "n_steps": 2,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Which tags belong to the category 'Uncategorized'?",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://experience.adobe.io/unifiedtags/tagCategory",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://experience.adobe.io/unifiedtags/tagCategory",
+        "api_params_template": "{\"limit\": \"{limit}0\"}"
+      },
+      {
+        "step_id": "s2",
+        "depends_on": [
+          "s1"
+        ],
+        "description": "Make API call to https://experience.adobe.io/unifiedtags/tags",
+        "can_parallel": false,
+        "action_type": "api",
+        "api_url_template": "https://experience.adobe.io/unifiedtags/tags",
+        "api_params_template": "{\"limit\": \"{limit}0\", \"tagCategoryId\": \"Uncategorized-87891E4066602D2{limit}A49{limit}F91@AdobeOrg\"}"
+      }
+    ],
+    "example_question": "Which tags belong to the category 'Uncategorized'?",
+    "react_turn_cost": 4,
+    "schemaShortcut_turns": 3
+  },
+  {
+    "template_id": "mtpl_019",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Show me the details of the tag named 'cool'.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://experience.adobe.io/unifiedtags/tags/{limit}117{limit}a7f-aa60-4{limit}33-bef1-717b3cef7818",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://experience.adobe.io/unifiedtags/tags/{limit}117{limit}a7f-aa60-4{limit}33-bef1-717b3cef7818",
+        "api_params_template": "null"
+      }
+    ],
+    "example_question": "Show me the details of the tag named 'cool'.",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_020",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "List all merge policies in this sandbox.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/config/mergePolicies",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/core/ups/config/mergePolicies",
+        "api_params_template": "{\"limit\": \"{limit}\"}"
+      }
+    ],
+    "example_question": "List all merge policies in this sandbox.",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_021",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "How many merge policies are configured in this sandbox?",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/config/mergePolicies",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/core/ups/config/mergePolicies",
+        "api_params_template": "{\"limit\": \"{limit}\"}"
+      }
+    ],
+    "example_question": "How many merge policies are configured in this sandbox?",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_022",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Show the default merge policy for schema class '_xdm.context.profile'.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/config/mergePolicies",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/core/ups/config/mergePolicies",
+        "api_params_template": "{\"limit\": \"{limit}\"}"
+      }
+    ],
+    "example_question": "Show the default merge policy for schema class '_xdm.context.profile'.",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_023",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "How many segment definitions exist in this sandbox?",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/segment/definitions",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/core/ups/segment/definitions",
+        "api_params_template": "{\"limit\": \"{limit}0\"}"
+      }
+    ],
+    "example_question": "How many segment definitions exist in this sandbox?",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_024",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "List all segment definitions.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/segment/definitions",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/core/ups/segment/definitions",
+        "api_params_template": "{\"limit\": \"{limit}\"}"
+      }
+    ],
+    "example_question": "List all segment definitions.",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_025",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Which segment definitions were {state} most recently?",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/segment/definitions",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/core/ups/segment/definitions",
+        "api_params_template": "{\"limit\": \"3\", \"orderBy\": \"updateTime:desc\"}"
+      }
+    ],
+    "example_question": "Which segment definitions were updated most recently?",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_026",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "List all segment evaluation jobs.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/segment/jobs",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/core/ups/segment/jobs",
+        "api_params_template": "{\"limit\": \"3\"}"
+      }
+    ],
+    "example_question": "List all segment evaluation jobs.",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_027",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "How many segment jobs are currently processing?",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/segment/jobs",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/core/ups/segment/jobs",
+        "api_params_template": "{\"limit\": \"20\"}"
+      }
+    ],
+    "example_question": "How many segment jobs are currently processing?",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_028",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Show all segment jobs with status 'QUEUED'.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/core/ups/segment/jobs",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/core/ups/segment/jobs",
+        "api_params_template": "{\"limit\": \"{limit}\"}"
+      }
+    ],
+    "example_question": "Show all segment jobs with status 'QUEUED'.",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_029",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "List the most recently {state} batches.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/catalog/batches",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/catalog/batches",
+        "api_params_template": "{\"limit\": \"{limit}0\", \"orderBy\": \"desc:{state}\"}"
+      }
+    ],
+    "example_question": "List the most recently created batches.",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_030",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "How many batches have status 'success'?",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/catalog/batches",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/catalog/batches",
+        "api_params_template": "{\"limit\": \"{limit}\", \"status\": \"success\"}"
+      }
+    ],
+    "example_question": "How many batches have status 'success'?",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_031",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Show the details of batch 01KP69BPA{limit}ZKFB7HCDYPE4GN6F.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/catalog/batches/01KP69BPA{limit}ZKFB7HCDYPE4GN6F",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/catalog/batches/01KP69BPA{limit}ZKFB7HCDYPE4GN6F",
+        "api_params_template": "null"
+      }
+    ],
+    "example_question": "Show the details of batch 01KP69BPA5ZKFB7HCDYPE4GN6F.",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_032",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Which files are available for download in batch 69de8a0e0cc6{limit}2b{limit}d11f01e?",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/export/batches/69de8a0e0cc6{limit}2b{limit}d11f01e/files",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/export/batches/69de8a0e0cc6{limit}2b{limit}d11f01e/files",
+        "api_params_template": "null"
+      }
+    ],
+    "example_question": "Which files are available for download in batch 69de8a0e0cc6102b5d11f01e?",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_033",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Show {state} files for batch 01KP6MNQ3X71RP6MNH6FHWGHVE.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/foundation/export/batches/01KP6MNQ3X71RP6MNH6FHWGHVE/{state}",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/foundation/export/batches/01KP6MNQ3X71RP6MNH6FHWGHVE/{state}",
+        "api_params_template": "null"
+      }
+    ],
+    "example_question": "Show failed files for batch 01KP6MNQ3X71RP6MNH6FHWGHVE.",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_034",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "What are the daily 'timeseries.ingestion.dataset.recordsuccess.count' values between '2026-03-1{limit}' and '{date}'?",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/infrastructure/observability/insights/metrics",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/infrastructure/observability/insights/metrics",
+        "api_params_template": "null"
+      }
+    ],
+    "example_question": "What are the daily 'timeseries.ingestion.dataset.recordsuccess.count' values between '2026-03-15' and '2026-03-31'?",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  },
+  {
+    "template_id": "mtpl_035",
+    "intent_type": "chained_api_call",
+    "n_steps": 1,
+    "dag_shape": "linear",
+    "n_parallel_steps": 1,
+    "question_template": "Show ingestion record counts and batch success counts for the last 90 days.",
+    "step_templates": [
+      {
+        "step_id": "s1",
+        "depends_on": [],
+        "description": "Make API call to https://platform.adobe.io/data/infrastructure/observability/insights/metrics",
+        "can_parallel": true,
+        "action_type": "api",
+        "api_url_template": "https://platform.adobe.io/data/infrastructure/observability/insights/metrics",
+        "api_params_template": "null"
+      }
+    ],
+    "example_question": "Show ingestion record counts and batch success counts for the last 90 days.",
+    "react_turn_cost": 2,
+    "schemaShortcut_turns": 2
+  }
+]
