@@ -53,6 +53,15 @@ async def main():
         if slots:
             print(f"🛠  Inferred Slots: {slots}")
         
+        # 1.5 Visualization
+        from viz_util import generate_mermaid, get_mermaid_link
+        mermaid_code = generate_mermaid(template)
+        print("\n📊 Execution Plan Visualization (Mermaid):")
+        print("-" * 40)
+        print(mermaid_code)
+        print("-" * 40)
+        print(f"🔗 View Live DAG: {get_mermaid_link(mermaid_code)}")
+        
         # 2. Execution Loop with Self-Correction
         max_retries = 1
         for attempt in range(max_retries + 1):
