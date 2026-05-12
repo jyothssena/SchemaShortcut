@@ -43,6 +43,7 @@ async def main():
             
             template = gemini_planner.plan(query)
             slots = {} # Gemini plan is usually ad-hoc and doesn't need slots
+            is_new_plan = True if template else False
 
         if not template:
             print("❌ Error: Could not generate a plan for this query.")
@@ -58,6 +59,30 @@ async def main():
             results = await executor.run(template, slots)
             print("--- Execution Complete ---\n")
             
+            # If it was a new plan from Gemini, save it for the future
+            if is_new_plan:
+                print("💾 Saving new plan to learned_trajectories.json...")
+                learned_path = "learned_trajectories.json"
+                learned_data = []
+                if os.path.exists(learned_path):
+                    with open(learned_path, "r") as f:
+                        try:
+                            learned_data = json.load(f)
+                        except:
+                            learned_data = []
+                
+                # Add the question to the template for mining
+                template["example_question"] = query
+                learned_data.append(template)
+                
+                with open(learned_path, "w") as f:
+                    json.dump(learned_data, f, indent=2)
+                
+                # Refresh templates
+                from multistep_template_miner import mine
+                count = mine()
+                print(f"🔄 Template library refreshed. Total templates: {count}")
+
             # 3. Final Summary
             for step_id, res in results.items():
                 print(f"Step {step_id} Result Preview: {str(res)[:200]}...")

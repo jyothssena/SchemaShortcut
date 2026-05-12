@@ -62,22 +62,32 @@ def parameterize(text):
     return text
 
 
-def mine(in_path=IN_PATH, out_path=OUT_PATH):
-    with open(in_path) as f:
-        trajectories = json.load(f)
+def mine(in_paths=[IN_PATH, "learned_trajectories.json"], out_path=OUT_PATH):
+    all_trajectories = []
+    for path in in_paths:
+        if os.path.exists(path):
+            with open(path) as f:
+                try:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        all_trajectories.extend(data)
+                except:
+                    continue
 
     templates = []
     by_type = defaultdict(list)
 
-    for t in trajectories:
-        if not t.get("all_steps_valid"):
+    for t in all_trajectories:
+        # Convert steps to match the expected format if needed
+        steps = t.get("steps") or t.get("step_templates")
+        if not steps:
             continue
-
-        shape = dag_shape(t["steps"])
-        q_template = parameterize(t["question"])
+            
+        shape = dag_shape(steps)
+        q_template = parameterize(t["question"] if "question" in t else t.get("example_question", ""))
 
         step_templates = []
-        for s in t["steps"]:
+        for s in steps:
             tpl_step = {
                 "step_id":    s["step_id"],
                 "depends_on": s["depends_on"],
@@ -86,47 +96,33 @@ def mine(in_path=IN_PATH, out_path=OUT_PATH):
                 "action_type": s.get("action_type", "unknown")
             }
             
-            if "sql" in s:
-                tpl_step["sql_template"] = parameterize(s["sql"])
-            if "api_url" in s:
-                tpl_step["api_url_template"] = parameterize(s["api_url"])
-            if "api_params" in s:
-                tpl_step["api_params_template"] = parameterize(s["api_params"])
+            if "sql" in s or "sql_template" in s:
+                tpl_step["sql_template"] = parameterize(s.get("sql") or s.get("sql_template"))
+            if "api_url" in s or "api_url_template" in s:
+                tpl_step["api_url_template"] = parameterize(s.get("api_url") or s.get("api_url_template"))
+            if "api_params" in s or "api_params_template" in s:
+                tpl_step["api_params_template"] = parameterize(s.get("api_params") or s.get("api_params_template"))
                 
             step_templates.append(tpl_step)
 
         tpl = {
             "template_id":         f"mtpl_{len(templates)+1:03d}",
-            "intent_type":         t["intent_type"],
-            "n_steps":             t["n_steps"],
+            "intent_type":         t.get("intent_type", "adhoc"),
+            "n_steps":             len(steps),
             "dag_shape":           shape["shape"],
             "n_parallel_steps":    shape["n_parallel"],
             "question_template":   q_template,
             "step_templates":      step_templates,
-            "example_question":    t["question"],
-            "react_turn_cost":     t["n_steps"] * 2,       # think+act per step
-            "schemaShortcut_turns": 2 + (1 if shape["n_parallel"] < t["n_steps"] else 0),
+            "example_question":    t.get("question") or t.get("example_question", ""),
+            "react_turn_cost":     len(steps) * 2,
+            "schemaShortcut_turns": 2 + (1 if shape["n_parallel"] < len(steps) else 0),
         }
         templates.append(tpl)
-        by_type[t["intent_type"]].append(tpl)
 
     with open(out_path, "w") as f:
         json.dump(templates, f, indent=2)
 
-    print(f"✓ {len(templates)} templates → {out_path}\n")
-    print(f"{'Template':10s} {'Type':22s} {'Steps':6s} {'DAG':8s} {'Parallel':9s} {'ReAct turns':12s} {'SS turns'}")
-    print("-" * 85)
-    for t in templates:
-        print(f"{t['template_id']:10s} {t['intent_type']:22s} {t['n_steps']:6d} "
-              f"{t['dag_shape']:8s} {t['n_parallel_steps']:9d} "
-              f"{t['react_turn_cost']:12d} {t['schemaShortcut_turns']}")
-
-    print(f"\nTurn savings summary:")
-    total_react = sum(t["react_turn_cost"] for t in templates)
-    total_ss    = sum(t["schemaShortcut_turns"] for t in templates)
-    print(f"  ReAct total turns:         {total_react}")
-    print(f"  SchemaShortcut total turns: {total_ss}")
-    print(f"  Reduction:                 {round((1 - total_ss/total_react)*100, 1)}%")
+    return len(templates)
 
 
 if __name__ == "__main__":
