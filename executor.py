@@ -63,13 +63,16 @@ class DAGExecutor:
                 df = self.conn.execute(sql).fetchdf()
                 result = df.to_dict('records')
             except Exception as e:
-                result = f"Error: {e}"
+                raise RuntimeError(f"Step {task_id} SQL failed: {e}")
                 
         elif action_type == "api":
             url = self.resolve_placeholders(task.get("api_url_template") or task.get("api_url"), slots, results_cache)
             params_str = self.resolve_placeholders(task.get("api_params_template") or task.get("api_params"), slots, results_cache)
             
             await asyncio.sleep(1.0) 
+            # Simulated API failure condition for testing
+            if "fail" in url:
+                raise RuntimeError(f"Step {task_id} API failed for {url}")
             result = {"status": "success", "data": f"Mocked API Response for {url} with params {params_str}"}
 
         duration = time.time() - start_time

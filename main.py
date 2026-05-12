@@ -53,41 +53,54 @@ async def main():
         if slots:
             print(f"🛠  Inferred Slots: {slots}")
         
-        # 2. Execution
-        print("\n--- Starting Parallel Execution ---")
-        try:
-            results = await executor.run(template, slots)
-            print("--- Execution Complete ---\n")
-            
-            # If it was a new plan from Gemini, save it for the future
-            if is_new_plan:
-                print("💾 Saving new plan to learned_trajectories.json...")
-                learned_path = "learned_trajectories.json"
-                learned_data = []
-                if os.path.exists(learned_path):
-                    with open(learned_path, "r") as f:
-                        try:
-                            learned_data = json.load(f)
-                        except:
-                            learned_data = []
+        # 2. Execution Loop with Self-Correction
+        max_retries = 1
+        for attempt in range(max_retries + 1):
+            print(f"\n--- Starting Parallel Execution (Attempt {attempt + 1}) ---")
+            try:
+                results = await executor.run(template, slots)
+                print("--- Execution Complete ---\n")
                 
-                # Add the question to the template for mining
-                template["example_question"] = query
-                learned_data.append(template)
-                
-                with open(learned_path, "w") as f:
-                    json.dump(learned_data, f, indent=2)
-                
-                # Refresh templates
-                from multistep_template_miner import mine
-                count = mine()
-                print(f"🔄 Template library refreshed. Total templates: {count}")
+                # If it was a new plan from Gemini, save it for the future
+                if is_new_plan:
+                    print("💾 Saving new plan to learned_trajectories.json...")
+                    learned_path = "learned_trajectories.json"
+                    learned_data = []
+                    if os.path.exists(learned_path):
+                        with open(learned_path, "r") as f:
+                            try:
+                                learned_data = json.load(f)
+                            except:
+                                learned_data = []
+                    
+                    template["example_question"] = query
+                    learned_data.append(template)
+                    
+                    with open(learned_path, "w") as f:
+                        json.dump(learned_data, f, indent=2)
+                    
+                    from multistep_template_miner import mine
+                    count = mine()
+                    print(f"🔄 Template library refreshed. Total templates: {count}")
 
-            # 3. Final Summary
-            for step_id, res in results.items():
-                print(f"Step {step_id} Result Preview: {str(res)[:200]}...")
-        except Exception as e:
-            print(f"❌ Execution Error: {e}")
+                # 3. Final Summary
+                for step_id, res in results.items():
+                    print(f"Step {step_id} Result Preview: {str(res)[:200]}...")
+                break # Success!
+                
+            except Exception as e:
+                print(f"❌ Execution Error: {e}")
+                if attempt < max_retries and gemini_planner:
+                    print("🔄 Attempting Self-Correction with Gemini...")
+                    new_template = gemini_planner.fix_plan(query, template, str(e))
+                    if new_template:
+                        template = new_template
+                        print("✨ Gemini provided a corrected plan. Retrying...")
+                    else:
+                        print("❌ Gemini failed to provide a correction.")
+                        break
+                else:
+                    break
 
 if __name__ == "__main__":
     try:

@@ -75,6 +75,34 @@ class GeminiPlanner:
             print(f"❌ Gemini Planning Error: {e}")
             return None
 
+    def fix_plan(self, query, original_plan, error_message):
+        prompt = f"""
+        You previously generated a query plan for the question: "{query}"
+        
+        ORIGINAL PLAN:
+        {json.dumps(original_plan, indent=2)}
+        
+        EXECUTION ERROR:
+        {error_message}
+        
+        The execution failed. Please analyze the error (e.g., column not found, table missing, syntax error) and provide a CORRECTED JSON plan.
+        
+        DATABASE SCHEMA FOR REFERENCE:
+        {self.schema_context}
+        
+        Return ONLY the corrected JSON object.
+        """
+        try:
+            response = self.model.generate_content(prompt)
+            text = response.text
+            match = re.search(r'\{.*\}', text, re.DOTALL)
+            if match:
+                return json.loads(match.group(0))
+            return None
+        except Exception as e:
+            print(f"❌ Gemini Correction Error: {e}")
+            return None
+
 class Planner:
     def __init__(self, templates_path=TEMPLATES_PATH):
         with open(templates_path, "r") as f:
