@@ -16,6 +16,31 @@ class DAGExecutor:
             except Exception as e:
                 print(f"⚠️ Warning: Skipping {f} due to error: {e}")
 
+    def resolve_placeholders(self, text, slots, results_cache):
+        if not isinstance(text, str):
+            return text
+            
+        # 1. Resolve local slots {slot}
+        for k, v in slots.items():
+            text = text.replace(f"{{{k}}}", str(v))
+            
+        # 2. Resolve parent results {{s1.column}}
+        import re
+        placeholders = re.findall(r'\{\{(s\d+)\.(\w+)\}\}', text)
+        for step_id, col_name in placeholders:
+            parent_result = results_cache.get(step_id)
+            if parent_result and hasattr(parent_result, "result"):
+                data = parent_result.result()
+                if isinstance(data, list) and len(data) > 0:
+                    # If it's a list of dicts, get the column from the first row
+                    # Or collect all if it's a list
+                    if col_name in data[0]:
+                        values = [str(row[col_name]) for row in data if col_name in row]
+                        # If multiple values, join with commas for SQL IN clauses
+                        replacement = ", ".join([f"'{v}'" if isinstance(v, str) else str(v) for v in values])
+                        text = text.replace(f"{{{{{step_id}.{col_name}}}}}", replacement)
+        return text
+
     async def execute_task(self, task, slots, results_cache):
         # Wait for dependencies
         if task["depends_on"]:
@@ -30,23 +55,22 @@ class DAGExecutor:
         result = None
         
         if action_type == "sql":
-            sql = task["sql_template"]
-            for k, v in slots.items():
-                sql = sql.replace(f"{{{k}}}", str(v))
+            sql = self.resolve_placeholders(task.get("sql_template") or task.get("sql"), slots, results_cache)
             
-            # Simulate some processing delay to show parallelization
             await asyncio.sleep(0.5) 
             try:
-                rel = self.conn.execute(sql)
-                result = rel.fetchall()
+                # Use fetchdf() to get column names easily
+                df = self.conn.execute(sql).fetchdf()
+                result = df.to_dict('records')
             except Exception as e:
                 result = f"Error: {e}"
                 
         elif action_type == "api":
-            # Mocking API call
-            url = task["api_url_template"]
-            await asyncio.sleep(1.0) # Network latency simulation
-            result = {"status": "success", "data": "Mocked API Response for " + url}
+            url = self.resolve_placeholders(task.get("api_url_template") or task.get("api_url"), slots, results_cache)
+            params_str = self.resolve_placeholders(task.get("api_params_template") or task.get("api_params"), slots, results_cache)
+            
+            await asyncio.sleep(1.0) 
+            result = {"status": "success", "data": f"Mocked API Response for {url} with params {params_str}"}
 
         duration = time.time() - start_time
         print(f"[{datetime.now().strftime('%H:%M:%S.%f')[:-3]}] Finished {task_id} in {duration:.2f}s")

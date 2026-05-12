@@ -27,6 +27,12 @@ class GeminiPlanner:
         - api: Use this for external service calls. 
         Note: The platform has an Adobe Journey Optimizer API at 'https://platform.adobe.io/ajo/journey'.
         
+        CROSS-STEP DATA PASSING:
+        If a step depends on a previous step, you can reference the previous step's results using:
+        {{{{step_id.column_name}}}}
+        For example: "SELECT * FROM campaigns WHERE id IN ({{{{s1.campaign_id}}}})"
+        This will automatically be replaced with a comma-separated list of values from step s1's result.
+        
         OUTPUT FORMAT (JSON):
         Return ONLY a JSON object with the following structure:
         {{
